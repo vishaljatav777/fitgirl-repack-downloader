@@ -118,7 +118,7 @@ class FuckingFastResolver:
                 self._save_cache()
 
             return direct_url
-        except Exception as e:
+        except Exception:
             return None
         finally:
             page.remove_listener("response", on_response)
