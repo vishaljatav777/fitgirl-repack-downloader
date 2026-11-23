@@ -47,7 +47,7 @@ def main() -> None:
     # transform `python main.py <url> ...` to `python main.py download <url> ...`
     if len(sys.argv) > 1:
         first = sys.argv[1].strip()
-        subcommands = {"download", "search", "history", "verify", "extract", "diagnostics", "jobs", "config", "--help", "-h"}
+        subcommands = {"download", "search", "history", "verify", "extract", "diagnostics", "jobs", "config", "gui", "--help", "-h"}
         if first not in subcommands and not first.startswith("-"):
             # It's a direct URL or path! Insert 'download' subcommand
             sys.argv.insert(1, "download")

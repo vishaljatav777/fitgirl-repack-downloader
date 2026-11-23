@@ -267,6 +267,13 @@ def diagnostics_cmd() -> None:
     console.print(render_diagnostics_table(diag))
 
 
+@app.command("gui")
+def gui_cmd() -> None:
+    """Launch the Windows native PySide6 desktop GUI."""
+    from gui.app import run_gui
+    run_gui()
+
+
 @jobs_app.command("list")
 def jobs_list_cmd(status: str | None = typer.Option(None, help="Filter by status (COMPLETED, DOWNLOADING, PAUSED, FAILED)")) -> None:
     """List all persistent download jobs."""
