@@ -1,9 +1,9 @@
-import os
 import re
 import subprocess
 from pathlib import Path
-from typing import List, Tuple
+
 from rich.console import Console
+
 from config import get_unrar_path
 
 console = Console()
@@ -14,7 +14,7 @@ class ArchiveVerifierExtractor:
         self.extract_dir = Path(extract_dir)
         self.unrar_path = get_unrar_path()
 
-    def verify_parts(self) -> Tuple[bool, List[Path], List[int]]:
+    def verify_parts(self) -> tuple[bool, list[Path], list[int]]:
         """
         Scans download_dir for multipart RAR files.
         Returns (is_complete, sorted_part_files, missing_part_numbers).
@@ -102,8 +102,7 @@ class ArchiveVerifierExtractor:
             with console.status("[bold cyan]Extracting multi-part game archive... Please wait.[/]"):
                 result = subprocess.run(
                     cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    capture_output=True,
                     text=True
                 )
 

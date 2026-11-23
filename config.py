@@ -1,50 +1,51 @@
-import os
+"""
+Backward-compatibility configuration wrapper.
+Integrates with the validated settings module while preserving existing constant names.
+"""
+
+from __future__ import annotations
+
 from pathlib import Path
 
+from settings import (
+    DEFAULT_BROWSER_PATHS as POSSIBLE_BROWSER_PATHS,
+)
+from settings import (
+    DEFAULT_UNRAR_PATHS as POSSIBLE_UNRAR_PATHS,
+)
+from settings import (
+    detect_executable,
+    get_settings,
+)
+
+_settings = get_settings()
+
 # Base directories
-BASE_DIR = Path(__file__).resolve().parent
-DOWNLOAD_DIR = BASE_DIR / "downloads"
-EXTRACT_DIR = BASE_DIR / "extracted"
+BASE_DIR: Path = _settings.base_dir
+DOWNLOAD_DIR: Path = _settings.download_dir
+EXTRACT_DIR: Path = _settings.extract_dir
 
-# Ensure directories exist
-DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-EXTRACT_DIR.mkdir(parents=True, exist_ok=True)
+# Concurrency & Network Configuration
+MAX_CONCURRENT_DOWNLOADS: int = _settings.max_concurrent_downloads
+CHUNK_SIZE: int = _settings.chunk_size
+TIMEOUT: int = _settings.timeout
+MAX_RETRIES: int = _settings.max_retries
+USER_AGENT: str = _settings.user_agent
 
-# Download configuration
-MAX_CONCURRENT_DOWNLOADS = 3       # Files downloaded in parallel
-CHUNK_SIZE = 1024 * 1024           # 1 MB buffer
-TIMEOUT = 30                       # Request timeout in seconds
-MAX_RETRIES = 5                    # Retries on broken connection
 
-# Default User-Agent
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+def ensure_directories() -> None:
+    """Explicitly ensures download and extract directories exist.
 
-# Auto-detect Browser (Brave preferred, fallback to Chrome / Edge)
-POSSIBLE_BROWSER_PATHS = [
-    r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
-    os.path.expandvars(r"%LOCALAPPDATA%\BraveSoftware\Brave-Browser\Application\brave.exe"),
-    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-    os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
-    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-]
+    Eliminates import-time filesystem side effects.
+    """
+    _settings.ensure_directories()
+
 
 def get_browser_path() -> str:
-    for path in POSSIBLE_BROWSER_PATHS:
-        if os.path.exists(path):
-            return path
-    return ""
+    """Returns detected path to Brave, Chrome, or Edge executable."""
+    return detect_executable(POSSIBLE_BROWSER_PATHS, "brave") or ""
 
-# Auto-detect UnRAR / 7-Zip
-POSSIBLE_UNRAR_PATHS = [
-    r"C:\Program Files\WinRAR\UnRAR.exe",
-    r"C:\Program Files\WinRAR\WinRAR.exe",
-    r"C:\Program Files (x86)\WinRAR\UnRAR.exe",
-    r"C:\Program Files\7-Zip\7z.exe",
-    r"C:\Program Files (x86)\7-Zip\7z.exe",
-]
 
 def get_unrar_path() -> str:
-    for path in POSSIBLE_UNRAR_PATHS:
-        if os.path.exists(path):
-            return path
-    return ""
+    """Returns detected path to WinRAR or 7-Zip executable."""
+    return detect_executable(POSSIBLE_UNRAR_PATHS, "7z") or ""

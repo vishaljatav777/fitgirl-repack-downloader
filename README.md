@@ -58,29 +58,32 @@ While downloading, `main.py` renders a live, updating terminal dashboard:
 
 ---
 
-## ⚙️ Command-Line Options
+## ⚙️ Professional Typer CLI Commands
 
-| Flag | Description | Default |
+The CLI is powered by Typer and Rich, offering rich subcommands alongside backward-compatible execution:
+
+| Command | Description | Example |
 | :--- | :--- | :--- |
-| `url` | FitGirl repack page URL (positional argument) | Optional |
-| `--workers N` | Concurrent files downloading in parallel (1 to 5) | `3` |
-| `--dir <path>` | Custom folder to save downloads | `./downloads` |
-| `--all-optionals` | Download optional language packs (by default they are skipped) | `False` |
-| `--no-extract` | Skip automatic WinRAR/7-Zip archive extraction | `False` |
+| `python main.py` | Launch interactive wizard & menu | `python main.py` |
+| `python main.py download <url>` | Download repack with live dashboard | `python main.py download "https://fitgirl..." -w 4` |
+| `python main.py search <query>` | Search FitGirl catalog | `python main.py search "Elden Ring"` |
+| `python main.py jobs list` | List all tracked download jobs | `python main.py jobs list --status PAUSED` |
+| `python main.py jobs show <id>` | Show individual parts of a job | `python main.py jobs show "Elden Ring"` |
+| `python main.py jobs resume <id>` | Resume an interrupted job | `python main.py jobs resume "Elden Ring"` |
+| `python main.py jobs cancel <id>` | Cancel an active or paused job | `python main.py jobs cancel "Elden Ring"` |
+| `python main.py history` | View completed download history | `python main.py history` |
+| `python main.py verify <folder>` | Check multi-part RAR sequence | `python main.py verify "./downloads/Game"` |
+| `python main.py extract <folder>` | Extract archive with 7z/WinRAR | `python main.py extract "./downloads/Game"` |
+| `python main.py diagnostics` | Full system readiness check | `python main.py diagnostics` |
+| `python main.py config show` | View current configuration | `python main.py config show` |
+| `python main.py config set <k> <v>` | Update application setting | `python main.py config set max_concurrent_downloads 4` |
 
-### Examples:
-- **Fast 4-stream download**:
-  ```powershell
-  python main.py "https://fitgirl-repacks.site/game-url-here/" --workers 4
-  ```
-- **Save to custom folder**:
-  ```powershell
-  python main.py "https://fitgirl-repacks.site/game-url-here/" --dir "D:\MyGames"
-  ```
-- **Download without auto-extracting**:
-  ```powershell
-  python main.py "https://fitgirl-repacks.site/game-url-here/" --no-extract
-  ```
+### Download Flags
+- `--workers <1-10>`: Concurrent file streams (default: 3).
+- `--dir <path>`: Custom destination folder.
+- `--no-extract`: Skip auto-extracting archives after download.
+- `--all-optionals`: Download optional voice/language packs.
+- `--non-interactive`: Disable Live dashboard for clean plain-text log streaming (ideal for CI/scripts).
 
 ---
 
@@ -92,3 +95,37 @@ While downloading, `main.py` renders a live, updating terminal dashboard:
 4. **Cloudflare Stealth Resolver**: Resolves `fuckingfast.co` share links automatically using headless Brave/Chrome.
 5. **Auto-Extract with WinRAR / 7-Zip**: Automatically checks that all parts (`part01` to `partN`) are present and complete, then unpacks the archive into `extracted/<GameTitle>`.
 6. **Graceful Pause**: Press `Ctrl+C` anytime to pause safely without corrupting files.
+
+---
+
+## 🛠️ Developer & Quality Tooling (Phase 1 Foundation)
+
+The repository implements strict engineering quality standards defined in `pyproject.toml` and `Agents.md`:
+
+### Running Tests
+```powershell
+pytest
+```
+*Current test suite: 23 unit tests covering exceptions, settings validation, structured logging, scraper parsing, progress formatting, and archive part verification.*
+
+### Code Formatting & Linting (Ruff)
+```powershell
+ruff check .
+```
+
+### Static Type Checking (Mypy)
+```powershell
+mypy logger.py settings.py exceptions.py config.py tests/ scraper.py resolver.py downloader.py extractor.py main.py
+```
+
+---
+
+## 📚 Technical Documentation & Architecture
+
+Comprehensive technical specifications and audit reports are available in the repository root:
+- [PROJECT_AUDIT.md](PROJECT_AUDIT.md) — Exhaustive 12-domain codebase audit.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Target commercial architecture, SQLite schema, state machine, and PySide6/Typer design.
+- [BUG_REPORT.md](BUG_REPORT.md) — Catalog of confirmed defects vs potential risks.
+- [SECURITY_AUDIT.md](SECURITY_AUDIT.md) — Threat model, Path Traversal analysis, and mitigation matrix.
+- [IMPLEMENTATION_ROADMAP.md](IMPLEMENTATION_ROADMAP.md) — Phased engineering transformation plan.
+

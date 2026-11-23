@@ -1,10 +1,11 @@
 import json
-import time
 import threading
-from pathlib import Path
-from typing import List, Optional, Callable
+import time
+from collections.abc import Callable
+
 from playwright.sync_api import sync_playwright
-from config import get_browser_path, USER_AGENT, BASE_DIR
+
+from config import BASE_DIR, USER_AGENT, get_browser_path
 from scraper import DownloadItem
 
 CACHE_FILE = BASE_DIR / "resolved_cache.json"
@@ -13,7 +14,7 @@ class FuckingFastResolver:
     def __init__(
         self,
         headless: bool = True,
-        log_callback: Optional[Callable[[str], None]] = None
+        log_callback: Callable[[str], None] | None = None
     ):
         self.browser_path = get_browser_path()
         if not self.browser_path:
@@ -40,7 +41,7 @@ class FuckingFastResolver:
     def _load_cache(self) -> dict:
         if CACHE_FILE.exists():
             try:
-                with open(CACHE_FILE, "r", encoding="utf-8") as f:
+                with open(CACHE_FILE, encoding="utf-8") as f:
                     data = json.load(f)
                     now = time.time()
                     return {
@@ -58,9 +59,9 @@ class FuckingFastResolver:
         except Exception:
             pass
 
-    def resolve_single_page(self, page, share_url: str) -> Optional[str]:
+    def resolve_single_page(self, page, share_url: str) -> str | None:
         if share_url in self.cache:
-            return self.cache[share_url]["direct_url"]
+            return str(self.cache[share_url]["direct_url"])
 
         if self.is_stopped():
             return None
@@ -126,9 +127,9 @@ class FuckingFastResolver:
 
     def resolve_batch(
         self,
-        items: List[DownloadItem],
-        progress_callback: Optional[Callable[[int, int, DownloadItem], None]] = None
-    ) -> List[DownloadItem]:
+        items: list[DownloadItem],
+        progress_callback: Callable[[int, int, DownloadItem], None] | None = None
+    ) -> list[DownloadItem]:
         self._stop_event.clear()
         total = len(items)
         resolved_count = 0

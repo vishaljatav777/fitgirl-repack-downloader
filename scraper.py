@@ -1,9 +1,11 @@
 import re
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+
 import requests
 from bs4 import BeautifulSoup
-from config import USER_AGENT, TIMEOUT
+
+from config import TIMEOUT, USER_AGENT
+
 
 @dataclass
 class DownloadItem:
@@ -11,15 +13,15 @@ class DownloadItem:
     share_url: str
     is_optional: bool = False
     is_selective: bool = False
-    direct_url: Optional[str] = None
+    direct_url: str | None = None
     size_bytes: int = 0
 
 @dataclass
 class GameRepack:
     title: str
     page_url: str
-    parts: List[DownloadItem] = field(default_factory=list)
-    optionals: List[DownloadItem] = field(default_factory=list)
+    parts: list[DownloadItem] = field(default_factory=list)
+    optionals: list[DownloadItem] = field(default_factory=list)
 
 class FitGirlScraper:
     def __init__(self):
@@ -58,27 +60,27 @@ class FitGirlScraper:
 
         response = self.session.get(url, timeout=TIMEOUT)
         response.raise_for_status()
-        
+
         soup = BeautifulSoup(response.text, "html.parser")
-        
+
         # Extract title
         title_tag = soup.find("h1", class_="entry-title")
         title = title_tag.get_text(strip=True) if title_tag else "Unknown Game Repack"
-        
+
         # Find all fuckingfast links
         ff_anchors = [
             a for a in soup.find_all("a", href=True)
             if "fuckingfast.co" in a["href"]
         ]
-        
-        parts: List[DownloadItem] = []
-        optionals: List[DownloadItem] = []
+
+        parts: list[DownloadItem] = []
+        optionals: list[DownloadItem] = []
         seen_urls = set()
 
         for a in ff_anchors:
-            href = a["href"].strip()
+            href = str(a.get("href", "")).strip()
             text = a.get_text(strip=True)
-            
+
             # Determine filename from text or URL hash fragment
             filename = ""
             if "#" in href:
@@ -86,7 +88,7 @@ class FitGirlScraper:
                 filename = fragment
             else:
                 base_url = href
-                
+
             if not filename:
                 filename = text or base_url.split("/")[-1]
 
@@ -97,7 +99,7 @@ class FitGirlScraper:
 
             is_optional = "optional" in filename.lower()
             is_selective = "selective" in filename.lower()
-            
+
             item = DownloadItem(
                 filename=filename,
                 share_url=clean_share_url,
@@ -132,7 +134,7 @@ class FitGirlScraper:
             optionals=optionals
         )
 
-    def search_game(self, query: str) -> List[Dict[str, str]]:
+    def search_game(self, query: str) -> list[dict[str, str]]:
         """Searches FitGirl site and returns matching results (title and url)."""
         search_url = f"https://fitgirl-repacks.site/?s={requests.utils.quote(query)}"
         response = self.session.get(search_url, timeout=TIMEOUT)
@@ -149,6 +151,6 @@ class FitGirlScraper:
                 if link:
                     results.append({
                         "title": link.get_text(strip=True),
-                        "url": link["href"]
+                        "url": str(link.get("href", ""))
                     })
         return results

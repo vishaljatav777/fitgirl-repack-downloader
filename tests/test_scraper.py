@@ -1,6 +1,9 @@
 from __future__ import annotations
+
 import pytest
-from scraper import FitGirlScraper, DownloadItem, GameRepack
+
+from scraper import DownloadItem, FitGirlScraper
+
 
 def test_download_item_defaults():
     item = DownloadItem(

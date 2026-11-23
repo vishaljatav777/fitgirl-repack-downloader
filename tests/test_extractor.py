@@ -1,7 +1,10 @@
 from __future__ import annotations
+
 import tempfile
 from pathlib import Path
+
 from extractor import ArchiveVerifierExtractor
+
 
 def test_verify_parts_empty_directory():
     with tempfile.TemporaryDirectory() as tmpdir:

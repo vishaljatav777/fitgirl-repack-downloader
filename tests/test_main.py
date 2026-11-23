@@ -1,6 +1,7 @@
 from __future__ import annotations
-import pytest
+
 from main import format_bytes, format_seconds, make_progress_bar
+
 
 def test_format_bytes():
     assert format_bytes(500) == "500 B"
