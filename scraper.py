@@ -41,6 +41,39 @@ class FitGirlScraper:
         if not url.startswith("http://") and not url.startswith("https://"):
             url = "https://" + url
 
+        # Direct file or archive URL from authorized sources (in path or hash fragment)
+        archive_extensions = (
+            ".rar", ".7z", ".zip", ".bin", ".iso", ".exe", ".tar", ".gz",
+            ".part1.rar", ".part01.rar", ".001", ".pkg", ".msi"
+        )
+        url_without_hash = url.split("#")[0]
+        url_path = url_without_hash.split("?")[0]
+        fragment = url.split("#")[1] if "#" in url else ""
+
+        is_direct = (
+            any(url_path.lower().endswith(ext) for ext in archive_extensions) or
+            any(fragment.lower().endswith(ext) for ext in archive_extensions)
+        )
+        if is_direct:
+            if fragment:
+                base_url = url_without_hash
+                filename = fragment
+            else:
+                base_url = url
+                filename = url_path.split("/")[-1] or "download.bin"
+
+            item = DownloadItem(
+                filename=filename,
+                share_url=base_url,
+                direct_url=base_url  # Direct authorized download URL
+            )
+            return GameRepack(
+                title=f"Authorized Download ({filename})",
+                page_url=url,
+                parts=[item],
+                optionals=[]
+            )
+
         # If user pasted a direct fuckingfast link instead of a repack page
         if "fuckingfast.co" in url:
             filename = ""

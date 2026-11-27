@@ -94,6 +94,36 @@ While downloading, `main.py` renders a live, updating terminal dashboard:
 
 ---
 
+## 📦 Windows Portable Release
+
+A standalone, zero-installation portable distribution is available for Windows 10/11 (x64). It bundles the complete Python runtime, PySide6 desktop GUI, Typer/Rich CLI, and Playwright automation without requiring Python to be installed.
+
+### Quick Start (Portable)
+1. Download `FitGirlDownloader-1.0.0-windows-x64-portable.zip` from Releases and extract it anywhere (e.g. `D:\FitGirlDownloader`).
+2. Double-click **`FitGirlDownloader.exe`** to launch the Desktop GUI.
+3. Or open a terminal inside the folder and run **`.\FitGirlDownloaderCLI.exe`** for the command-line interface.
+
+> [!NOTE]
+> All downloads, extracted archives, settings, and SQLite databases are stored in the portable application folder (or custom directory configured in Settings), keeping your system clean.
+
+### Building the Portable Package from Source
+Run the included build script:
+```powershell
+# Using PowerShell:
+.\build_portable.ps1
+
+# Or via Command Prompt / Batch:
+build_portable.bat
+```
+The output will be compiled into `dist/FitGirlDownloader/` and packaged into `dist/FitGirlDownloader-1.0.0-windows-x64-portable.zip`.
+
+### ⚠️ Packaging & System Limitations
+- **OS Support**: 64-bit Windows 10 or Windows 11.
+- **Browser Requirement for Cloudflare**: Uses the local system browser (Microsoft Edge, Google Chrome, or Brave) to resolve `fuckingfast.co` share links via Playwright CDP. Microsoft Edge is pre-installed on all Windows 10/11 systems.
+- **Archive Extraction**: Auto-extraction requires either WinRAR (`UnRAR.exe` / `WinRAR.exe`) or 7-Zip (`7z.exe`) installed on the host system. If not present, downloads complete safely and can be extracted manually.
+
+---
+
 ## 🧪 Testing & Verification
 
 Run the full automated test suite (unit tests, CLI integration tests, and headless GUI smoke tests):
@@ -102,4 +132,4 @@ Run the full automated test suite (unit tests, CLI integration tests, and headle
 .venv\Scripts\mypy.exe logger.py settings.py exceptions.py config.py security.py storage.py downloader.py services.py terminal_ui.py cli.py main.py gui_launcher.py gui/ tests/
 .venv\Scripts\pytest -v
 ```
-All 58 tests pass with zero warnings or errors.
+All 99 tests pass with zero errors.

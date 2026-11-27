@@ -27,3 +27,23 @@ def test_scraper_direct_fuckingfast_url():
     assert len(repack.parts) == 1
     assert repack.parts[0].filename == "game.part01.rar"
     assert repack.parts[0].share_url == "https://fuckingfast.co/abc123xyz"
+
+
+def test_scraper_authorized_direct_archive_url():
+    scraper = FitGirlScraper()
+    url = "https://authorized.example.com/files/game.part01.rar"
+    repack = scraper.scrape_url(url)
+    assert len(repack.parts) == 1
+    assert repack.parts[0].filename == "game.part01.rar"
+    assert repack.parts[0].share_url == url
+    assert repack.parts[0].direct_url == url
+
+
+def test_scraper_authorized_direct_zip_with_fragment():
+    scraper = FitGirlScraper()
+    url = "https://authorized.example.com/download?id=123#MyArchive.zip"
+    repack = scraper.scrape_url(url)
+    assert len(repack.parts) == 1
+    assert repack.parts[0].filename == "MyArchive.zip"
+    assert repack.parts[0].direct_url == "https://authorized.example.com/download?id=123"
+

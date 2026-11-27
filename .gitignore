@@ -20,6 +20,14 @@ resolved_cache.json
 *.log
 task-*.log
 
+# Build & Distribution Artifacts
+build/
+dist/
+*.spec.bak
+.coverage
+htmlcov/
+*.egg-info/
+
 # IDE & Editor Settings
 .vscode/
 .idea/

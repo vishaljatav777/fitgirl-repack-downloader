@@ -11,6 +11,13 @@ from scraper import DownloadItem
 CACHE_FILE = BASE_DIR / "resolved_cache.json"
 
 class FuckingFastResolver:
+    """Compliant Link Resolver for download items.
+
+    Complies with access controls: automated Cloudflare Turnstile circumvention
+    and anti-bot stealth scripts are strictly excluded from the public distribution.
+    Users can provide direct authorized URLs or authorized link manifests.
+    """
+
     def __init__(
         self,
         headless: bool = True,
@@ -90,6 +97,16 @@ class FuckingFastResolver:
             if self.is_stopped():
                 return None
 
+            # Detect access-control challenge (Cloudflare Turnstile / anti-bot gate)
+            challenge = page.query_selector("iframe[src*='challenges.cloudflare.com'], .cf-turnstile, #challenge-running, #challenge-form")
+            if challenge:
+                self.log(
+                    f"⚠️ Access control challenge detected for {share_url}. "
+                    "Automated Cloudflare Turnstile bypass is excluded from this public distribution. "
+                    "Please provide a direct authorized download link."
+                )
+                return None
+
             btn = page.wait_for_selector(
                 "a.link-button, a:has-text('DOWNLOAD'), button:has-text('DOWNLOAD')",
                 timeout=15000
@@ -136,7 +153,12 @@ class FuckingFastResolver:
 
         uncached_indices = []
         for idx, item in enumerate(items):
-            if item.share_url in self.cache:
+            # If item already has an authorized direct_url, accept it directly
+            if item.direct_url:
+                resolved_count += 1
+                if progress_callback:
+                    progress_callback(resolved_count, total, item)
+            elif item.share_url in self.cache:
                 item.direct_url = self.cache[item.share_url]["direct_url"]
                 resolved_count += 1
                 if progress_callback:
@@ -148,23 +170,16 @@ class FuckingFastResolver:
             return items
 
         with sync_playwright() as p:
+            # Standard browser launch without stealth anti-bot evasion arguments
             browser = p.chromium.launch(
                 executable_path=self.browser_path,
                 headless=self.headless,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox"
-                ],
-                ignore_default_args=["--enable-automation"]
             )
             context = browser.new_context(
                 accept_downloads=True,
                 user_agent=USER_AGENT
             )
             page = context.new_page()
-            page.add_init_script(
-                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
-            )
 
             for idx in uncached_indices:
                 if self.is_stopped():

@@ -7,10 +7,57 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from exceptions import ConfigurationError
+
+
+def get_default_base_dir() -> Path:
+    """Returns the base application directory.
+
+    When running inside a PyInstaller frozen bundle, points to the directory containing
+    the executable rather than the internal extraction directory (_internal).
+    If the executable is located in a write-protected system directory such as
+    Program Files, falls back to %LOCALAPPDATA%\\FitGirlDownloader.
+    """
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        program_files = os.environ.get("ProgramFiles", r"C:\Program Files").lower()
+        program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)").lower()
+        exe_str = str(exe_dir).lower()
+        if exe_str.startswith(program_files) or exe_str.startswith(program_files_x86):
+            local_appdata = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+            return Path(local_appdata) / "FitGirlDownloader"
+        return exe_dir
+    return Path(__file__).resolve().parent
+
+
+def get_default_download_dir() -> Path:
+    """Returns the default download directory."""
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        program_files = os.environ.get("ProgramFiles", r"C:\Program Files").lower()
+        program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)").lower()
+        exe_str = str(exe_dir).lower()
+        if exe_str.startswith(program_files) or exe_str.startswith(program_files_x86):
+            return Path.home() / "Downloads" / "FitGirlDownloader"
+        return exe_dir / "downloads"
+    return Path(__file__).resolve().parent / "downloads"
+
+
+def get_default_extract_dir() -> Path:
+    """Returns the default extraction directory."""
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        program_files = os.environ.get("ProgramFiles", r"C:\Program Files").lower()
+        program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)").lower()
+        exe_str = str(exe_dir).lower()
+        if exe_str.startswith(program_files) or exe_str.startswith(program_files_x86):
+            return Path.home() / "Downloads" / "FitGirlDownloader" / "extracted"
+        return exe_dir / "extracted"
+    return Path(__file__).resolve().parent / "extracted"
 
 # Default browser execution paths on Windows
 DEFAULT_BROWSER_PATHS: list[str] = [
@@ -47,9 +94,9 @@ def detect_executable(candidates: list[str], which_name: str | None = None) -> s
 class AppSettings:
     """Validated configuration for the FitGirl Downloader application."""
 
-    base_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parent)
-    download_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parent / "downloads")
-    extract_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parent / "extracted")
+    base_dir: Path = field(default_factory=get_default_base_dir)
+    download_dir: Path = field(default_factory=get_default_download_dir)
+    extract_dir: Path = field(default_factory=get_default_extract_dir)
     max_concurrent_downloads: int = 3
     chunk_size: int = 1024 * 1024  # 1 MB
     timeout: int = 30  # seconds

@@ -295,10 +295,29 @@ class ResumableDownloader:
 
                     # Handle Range Not Satisfiable (HTTP 416)
                     if resp.status_code == 416:
+                        # Extract total size fallback from Content-Range (e.g. "bytes */10485760")
+                        cr = resp.headers.get("Content-Range", "")
+                        if "/" in cr:
+                            try:
+                                total_size = int(cr.split("/")[-1].strip())
+                            except ValueError:
+                                pass
+
                         if total_size > 0 and existing_part_size == total_size:
                             # File is already complete in .part
+                            if final_file_path.exists():
+                                final_file_path.unlink()
+                            os.replace(part_file_path, final_file_path)
                             success = True
-                            break
+                            self.log(f"✔ Completed {clean_name}")
+                            with self._lock:
+                                self.telemetry.completed_files += 1
+                                self._active_files_map.pop(item.filename, None)
+                            if self.storage:
+                                self.storage.update_part_progress(
+                                    self.job_id, clean_name, total_size, total_size, PartStatus.COMPLETED
+                                )
+                            return True
                         # Otherwise range request was invalid; restart from byte 0
                         existing_part_size = 0
                         current_downloaded = 0

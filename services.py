@@ -57,6 +57,14 @@ class DownloadManagerService:
         progress_callback: Callable[[int, int, DownloadItem], None] | None = None,
     ) -> list[DownloadItem]:
         """Resolves direct download links for the provided items via background browser automation."""
+        # Fast path: If all items already have direct_url (e.g. authorized direct sources), return immediately
+        if items and all(item.direct_url for item in items):
+            logger.info("All download items already have direct URLs; skipping browser resolver.")
+            if progress_callback:
+                for idx, item in enumerate(items, 1):
+                    progress_callback(idx, len(items), item)
+            return items
+
         if not self.settings.browser_path:
             raise BrowserNotFoundError(
                 "No compatible browser (Brave / Chrome / Edge) detected on your system.",

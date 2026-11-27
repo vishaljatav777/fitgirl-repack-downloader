@@ -1,0 +1,58 @@
+name: Release Build & Publish
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Windows Binaries & Installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Build Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Compile Standalone Binaries (PyInstaller)
+        run: |
+          pyinstaller --noconfirm --clean packaging/fitgirl_downloader.spec
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup -y --no-progress
+
+      - name: Build Windows Installer (Inno Setup)
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging/installer.iss
+
+      - name: Generate Portable Zip & SHA-256 Checksums
+        run: |
+          python packaging/build_portable.py
+
+      - name: Create GitHub Release & Upload Artifacts
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          files: |
+            dist/FitGirlDownloader-Setup-*.exe
+            dist/FitGirlDownloader-*-windows-x64-portable.zip
+            dist/checksums.sha256
+          draft: false
+          prerelease: false
+          generate_release_notes: true

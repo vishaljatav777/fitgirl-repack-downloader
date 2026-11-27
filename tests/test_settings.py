@@ -76,3 +76,37 @@ def test_get_settings_singleton():
     s1 = get_settings()
     s2 = get_settings()
     assert s1 is s2
+
+
+def test_frozen_mode_portable_paths(monkeypatch):
+    from settings import get_default_base_dir, get_default_download_dir, get_default_extract_dir
+
+    portable_exe = r"D:\PortableApps\FitGirlDownloader\FitGirlDownloader.exe"
+    monkeypatch.setattr("sys.frozen", True, raising=False)
+    monkeypatch.setattr("sys.executable", portable_exe)
+
+    base = get_default_base_dir()
+    download = get_default_download_dir()
+    extract = get_default_extract_dir()
+
+    assert base == Path(r"D:\PortableApps\FitGirlDownloader")
+    assert download == Path(r"D:\PortableApps\FitGirlDownloader\downloads")
+    assert extract == Path(r"D:\PortableApps\FitGirlDownloader\extracted")
+
+
+def test_frozen_mode_program_files_fallback(monkeypatch):
+    from settings import get_default_base_dir, get_default_download_dir, get_default_extract_dir
+
+    installed_exe = r"C:\Program Files\FitGirl Downloader\FitGirlDownloader.exe"
+    monkeypatch.setattr("sys.frozen", True, raising=False)
+    monkeypatch.setattr("sys.executable", installed_exe)
+    monkeypatch.setenv("LOCALAPPDATA", r"C:\Users\TestUser\AppData\Local")
+
+    base = get_default_base_dir()
+    download = get_default_download_dir()
+    extract = get_default_extract_dir()
+
+    assert base == Path(r"C:\Users\TestUser\AppData\Local\FitGirlDownloader")
+    assert download == Path.home() / "Downloads" / "FitGirlDownloader"
+    assert extract == Path.home() / "Downloads" / "FitGirlDownloader" / "extracted"
+

@@ -109,3 +109,36 @@ def test_cli_download_help():
     assert "--no-extract" in result.stdout
     assert "--all-optionals" in result.stdout
     assert "--non-interactive" in result.stdout
+
+
+def test_cli_search_command():
+    from unittest.mock import patch
+    with patch("cli.get_service") as mock_get_srv:
+        mock_srv = mock_get_srv.return_value
+        mock_srv.search_repacks.return_value = [
+            {"title": "Witcher 3", "url": "https://fitgirl-repacks.site/witcher-3/"}
+        ]
+        result = runner.invoke(app, ["search", "Witcher"])
+        assert result.exit_code == 0
+        assert "Witcher 3" in result.stdout
+
+
+def test_cli_jobs_cancel():
+    from unittest.mock import patch
+    with patch("cli.get_service") as mock_get_srv:
+        mock_srv = mock_get_srv.return_value
+        mock_srv.cancel_job.return_value = True
+        result = runner.invoke(app, ["jobs", "cancel", "job_123"])
+        assert result.exit_code == 0
+        assert "successfully canceled" in result.stdout
+
+
+def test_cli_jobs_resume_not_found():
+    from unittest.mock import patch
+    with patch("cli.get_service") as mock_get_srv:
+        mock_srv = mock_get_srv.return_value
+        mock_srv.get_job.return_value = None
+        result = runner.invoke(app, ["jobs", "resume", "non_existent"])
+        assert result.exit_code == 1
+        assert "not found" in result.stdout
+

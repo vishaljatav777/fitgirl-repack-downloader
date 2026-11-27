@@ -4,16 +4,30 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any, cast
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 # Force offscreen rendering for headless testing
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
+
+import pytest
+from PySide6.QtWidgets import QMessageBox
 
 from downloader import ActiveFileProgress, DownloadTelemetry
 from gui.main_window import MainWindow
 from services import DownloadManagerService
 from settings import AppSettings
 from storage import JobStorage
+
+
+@pytest.fixture(autouse=True)
+def mock_qmessagebox():
+    """Prevent any modal QMessageBox from blocking headless test execution."""
+    with patch("PySide6.QtWidgets.QMessageBox.information") as m_info, \
+         patch("PySide6.QtWidgets.QMessageBox.warning") as m_warn, \
+         patch("PySide6.QtWidgets.QMessageBox.critical") as m_crit, \
+         patch("PySide6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes) as m_quest:
+        yield (m_info, m_warn, m_crit, m_quest)
+
 
 
 def test_main_window_instantiation(qtbot):
@@ -151,3 +165,118 @@ def test_close_event_clean_shutdown(qtbot):
         event = MagicMock()
         window.closeEvent(event)
         assert event.accept.called
+
+
+def test_queue_view_search_and_selection(qtbot):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        storage = JobStorage(Path(tmpdir) / "q.db")
+        service = DownloadManagerService(storage=storage)
+
+        with patch.object(service, "search_repacks", return_value=[{"title": "Elden Ring Deluxe", "url": "https://fitgirl-repacks.site/elden-ring/"}]), \
+             patch("PySide6.QtWidgets.QMessageBox.warning"), \
+             patch("PySide6.QtWidgets.QMessageBox.critical"):
+            window = MainWindow(service=service)
+            qtbot.addWidget(window)
+            queue_view = window.queue_view
+
+            # Mock start_download_flow so no scraping / network / modal dialog is triggered
+            with patch.object(window, "start_download_flow"):
+                # Test search emission
+                with qtbot.waitSignal(queue_view.search_requested, timeout=1000) as blocker:
+                    queue_view.search_input.setText("Elden Ring")
+                    queue_view.search_btn.click()
+                assert blocker.args[0] == "Elden Ring"
+
+                # Results table populated
+                assert queue_view.results_table.rowCount() == 1
+                item = queue_view.results_table.item(0, 0)
+                assert item is not None and item.text() == "Elden Ring Deluxe"
+
+                # Test download requested emission
+                with qtbot.waitSignal(queue_view.download_requested, timeout=1000) as blocker:
+                    queue_view.results_table.selectRow(0)
+                    queue_view.download_btn.click()
+                assert blocker.args[0] == "https://fitgirl-repacks.site/elden-ring/"
+
+
+def test_history_view_display_and_actions(qtbot):
+    from storage import JobRecord, JobStatus
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        storage = JobStorage(Path(tmpdir) / "h.db")
+        service = DownloadManagerService(storage=storage)
+        with patch.object(service, "resume_job"), patch("PySide6.QtWidgets.QMessageBox.warning"):
+            window = MainWindow(service=service)
+            qtbot.addWidget(window)
+
+            history_view = window.history_view
+            job = JobRecord(
+                id="job_123",
+                title="Cyberpunk 2077",
+                page_url="https://site.co/cp",
+                download_dir=tmpdir,
+                total_files=5,
+                total_bytes=10000,
+                status=JobStatus.COMPLETED,
+                created_at=1000.0,
+                updated_at=2000.0,
+            )
+            history_view.display_jobs([job])
+
+            assert history_view.table.rowCount() == 1
+            item = history_view.table.item(0, 0)
+            assert item is not None and item.text() == "Cyberpunk 2077"
+
+            # Test resume request emission
+            with qtbot.waitSignal(history_view.resume_job_requested, timeout=1000) as blocker:
+                history_view.table.selectRow(0)
+                history_view.resume_btn.click()
+            assert blocker.args[0] == "job_123"
+
+            # Test open folder invokes os.startfile
+            with patch("os.startfile") as mock_startfile:
+                history_view.table.selectRow(0)
+                history_view.open_folder_btn.click()
+                assert mock_startfile.called
+
+
+def test_extract_view_actions(qtbot):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        storage = JobStorage(tmp_path / "e.db")
+        service = DownloadManagerService(storage=storage)
+        window = MainWindow(service=service)
+        qtbot.addWidget(window)
+
+        extract_view = window.extract_view
+        extract_view.folder_input.setText(str(tmp_path))
+
+        # Test verify emission
+        with qtbot.waitSignal(extract_view.verify_requested, timeout=1000) as blocker:
+            extract_view.verify_btn.click()
+        assert blocker.args[0] == tmp_path
+
+        # Test display verification output
+        extract_view.set_verification_result(True, 3, [])
+        assert "verified complete" in extract_view.status_lbl.text()
+
+        # Test extract emission
+        with qtbot.waitSignal(extract_view.extract_requested, timeout=1000) as blocker:
+            extract_view.extract_btn.click()
+        assert blocker.args[0] == tmp_path
+
+
+def test_about_view_content(qtbot):
+    from PySide6.QtWidgets import QLabel
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        storage = JobStorage(Path(tmpdir) / "a.db")
+        service = DownloadManagerService(storage=storage)
+        window = MainWindow(service=service)
+        qtbot.addWidget(window)
+
+        about_view = window.about_view
+        header_lbl = about_view.findChild(QLabel, "viewHeader")
+        assert header_lbl is not None
+        assert "About" in header_lbl.text()
+
