@@ -15,6 +15,7 @@ from typing import Any
 import typer
 from rich.console import Console
 from rich.live import Live
+from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 
 from downloader import DownloadTelemetry
@@ -85,7 +86,7 @@ def execute_download_pipeline(
 
     # Step 2: Resolve Direct Links
     console.print("[bold cyan]Resolving direct download links via background browser...[/]")
-    with console.status("[bold cyan]Resolving links with Cloudflare bypass...[/]") as status:
+    with console.status("[bold cyan]Resolving direct download links via browser...[/]") as status:
         def update_progress(current: int, total: int, item: Any) -> None:
             status.update(f"[bold cyan]Resolving {current}/{total}:[/] {item.filename[:35]}...")
 
@@ -96,10 +97,50 @@ def execute_download_pipeline(
             raise typer.Exit(code=1) from e
 
     valid_resolved = [i for i in resolved_items if i.direct_url]
-    console.print(f"[bold green]✔ Successfully resolved {len(valid_resolved)}/{len(items)} direct links![/]\n")
+    if valid_resolved:
+        console.print(f"[bold green]✔ Successfully resolved {len(valid_resolved)}/{len(items)} direct links![/]\n")
+    else:
+        console.print(f"[bold red]✘ Failed to resolve direct download links (0/{len(items)} resolved).[/]\n")
 
     if not valid_resolved:
-        console.print("[bold red]Could not resolve any direct links. Aborting.[/]")
+        reasons = {i.error_message for i in items if i.error_message}
+        if reasons:
+            console.print("[bold yellow]Root Cause Diagnostic:[/]")
+            for r in sorted(reasons):
+                console.print(f" • [red]{r}[/]")
+            console.print()
+
+        is_dns_issue = any("DNS" in r or "ERR_NAME_NOT_RESOLVED" in r for r in reasons)
+        is_cf_issue = any("Cloudflare" in r or "Turnstile" in r for r in reasons)
+
+        tips: list[str] = []
+        if is_dns_issue:
+            tips.append(
+                "[bold cyan]1. Fix DNS / ISP Domain Blocking:[/]\n"
+                "   Your ISP or DNS server failed to resolve [bold white]fuckingfast.co[/] ([yellow]ERR_NAME_NOT_RESOLVED[/]).\n"
+                "   To fix this:\n"
+                "   • Change Windows DNS to Cloudflare ([green]1.1.1.1[/] & [green]1.0.0.1[/]) or Google ([green]8.8.8.8[/] & [green]8.8.4.4[/]).\n"
+                "   • Open Command Prompt as Administrator and run: [green]ipconfig /flushdns[/]"
+            )
+        if is_cf_issue or not is_dns_issue:
+            tips.append(
+                "[bold cyan]2. Cloudflare Turnstile Human Verification:[/]\n"
+                "   Filehosters require human verification that cannot be bypassed headlessly.\n"
+                "   • Open the repack mirror link in your regular web browser (Chrome/Edge/Brave).\n"
+                "   • Click the download button on the page.\n"
+                "   • Copy the direct download link ([green]https://dl.fuckingfast.co/...[/]) and paste it into Option 1."
+            )
+        tips.append(
+            "[bold cyan]3. Batch Manifest or Direct Archive Download:[/]\n"
+            "   You can paste a direct archive URL ([green].rar / .zip / .7z[/]) or a local text file\n"
+            "   containing direct links (e.g. [green]links.txt[/]) into Option 1 for immediate download."
+        )
+
+        console.print(Panel(
+            "\n\n".join(tips),
+            title="[bold yellow]⚡ Troubleshooting & Next Steps ⚡[/]",
+            border_style="yellow",
+        ))
         raise typer.Exit(code=1)
 
     # Step 3: Download with Live Dashboard
@@ -203,8 +244,13 @@ def search_cmd(query: str = typer.Argument(..., help="Game title to search")) ->
     """Search FitGirl catalog for game titles."""
     print_banner()
     service = get_service()
-    with console.status(f"[cyan]Searching FitGirl catalog for '{query}'...[/]"):
-        results = service.search_repacks(query)
+    try:
+        with console.status(f"[cyan]Searching FitGirl catalog for '{query}'...[/]"):
+            results = service.search_repacks(query)
+    except Exception as e:
+        console.print(f"[bold red]✘ Search failed:[/] {e}")
+        console.print("[yellow]Tip: You can find the repack directly in your browser and run 'download <url>'.[/]")
+        raise typer.Exit(code=1) from e
 
     if not results:
         console.print(f"[yellow]No results found for query '{query}'.[/]")
@@ -386,8 +432,14 @@ def run_interactive() -> None:
         elif choice == "2":
             query = Prompt.ask("\nEnter game title to search")
             if query.strip():
-                with console.status("[cyan]Searching FitGirl Repacks...[/]"):
-                    results = service.search_repacks(query.strip())
+                try:
+                    with console.status("[cyan]Searching FitGirl Repacks...[/]"):
+                        results = service.search_repacks(query.strip())
+                except Exception as e:
+                    console.print(f"\n[bold red]✘ Search failed:[/] {e}")
+                    console.print("[cyan]Tip: Search directly at https://fitgirl-repacks.site in your browser, copy the repack URL, and use Option 1.[/]\n")
+                    continue
+
                 if not results:
                     console.print("[yellow]No results found for that query.[/]")
                 else:

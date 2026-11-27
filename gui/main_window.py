@@ -182,6 +182,12 @@ class MainWindow(QMainWindow):
             if self.service.settings.include_optionals and repack.optionals:
                 items.extend(repack.optionals)
 
+            # Fast-path: If all items already have direct_url, bypass ResolverWorker
+            if items and all(item.direct_url for item in items):
+                self.dashboard_view.append_log("✔ Direct download links detected; bypassing browser resolver.")
+                self._on_links_resolved(repack, items)
+                return
+
             # Spawn ResolverWorker
             self.dashboard_view.append_log("Launching stealth resolver in background worker...")
             self.active_resolver_worker = ResolverWorker(self.service, items, parent=self)
@@ -200,7 +206,17 @@ class MainWindow(QMainWindow):
         self.dashboard_view.append_log(f"✔ Successfully resolved {len(valid_resolved)}/{len(resolved_items)} direct links!")
 
         if not valid_resolved:
-            QMessageBox.warning(self, "Resolution Incomplete", "Could not resolve any direct links. Aborting download.")
+            errors = [i.error_message for i in resolved_items if getattr(i, "error_message", None)]
+            err_detail = "\n".join(f"• {e}" for e in sorted(set(errors))) if errors else "DNS resolution failed or Cloudflare Turnstile challenge detected."
+            QMessageBox.warning(
+                self,
+                "Resolution Incomplete",
+                f"Could not resolve direct download links automatically.\n\n"
+                f"Reason(s):\n{err_detail}\n\n"
+                f"Troubleshooting:\n"
+                f"1. Check your DNS settings (try Cloudflare 1.1.1.1 or Google 8.8.8.8).\n"
+                f"2. If human verification is required, open the link in your regular browser, copy the direct download link, and paste it here directly."
+            )
             return
 
         # Spawn DownloadWorker

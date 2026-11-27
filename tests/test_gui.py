@@ -234,7 +234,7 @@ def test_history_view_display_and_actions(qtbot):
             assert blocker.args[0] == "job_123"
 
             # Test open folder invokes os.startfile
-            with patch("os.startfile") as mock_startfile:
+            with patch("os.startfile", create=True) as mock_startfile:
                 history_view.table.selectRow(0)
                 history_view.open_folder_btn.click()
                 assert mock_startfile.called

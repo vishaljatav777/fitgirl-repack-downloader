@@ -82,7 +82,15 @@ class HistoryView(QWidget):
             if item:
                 folder = item.text()
                 if os.path.exists(folder):
-                    os.startfile(folder)  # Windows native file explorer opener
+                    if hasattr(os, "startfile"):
+                        os.startfile(folder)  # type: ignore[attr-defined]
+                    else:
+                        import subprocess
+                        import sys
+                        if sys.platform == "darwin":
+                            subprocess.run(["open", folder], check=False)
+                        else:
+                            subprocess.run(["xdg-open", folder], check=False)
 
     def _on_resume(self) -> None:
         selected = self.table.selectedItems()

@@ -183,8 +183,8 @@ c:\Project\Automation game dunloade\
 
 ## 5. CURRENT TEST STATUS
 
-- **Total Collected Tests:** 105 tests across 15 test files in `tests/`.
-- **Passing Tests:** 105 passed (100% pass rate in 21.08s).
+- **Total Collected Tests:** 112 tests across 15 test files in `tests/`.
+- **Passing Tests:** 112 passed (100% pass rate in 26.96s).
 - **Failing Tests:** 0 failed.
 - **Linters & Static Analysis:**
   - `ruff check .` -> All checks passed! (0 errors)
@@ -208,7 +208,9 @@ c:\Project\Automation game dunloade\
 | **AUDIT-04** | `pyproject.toml` / scripts | Low | Version string shows `0.1.0` in `pyproject.toml` and `build_portable.ps1`, while release docs use `1.0.0`. | **RESOLVED:** Synchronized `pyproject.toml` and build scripts to `1.0.0` following SemVer 2.0.0 roadmap completion justification. |
 | **AUDIT-05** | `downloader.py` | Low | HTTP 416 response does not parse `Content-Range: bytes */<length>` fallback when initial HEAD `total_size <= 0`. | **RESOLVED:** Implemented `Content-Range` header extraction fallback on HTTP 416 in `downloader.py` and added regression test. |
 | **AUDIT-06** | Access Control & Compliance | High | Public distribution required exclusion of stealth Cloudflare Turnstile circumvention and support for authorized sources. | **RESOLVED:** Excluded stealth evasion flags from `resolver.py`, added challenge detection, and enabled direct authorized archive downloads in `scraper.py` and `services.py`. |
-| **AUDIT-07** | GUI Resolution Error | Medium | Pasting download links in GUI displays "Resolution Incomplete: Could not resolve any direct links". | **DIAGNOSED:** Full root cause documented in `RESOLUTION_ERROR_DIAGNOSIS.md`. Proposed safe direct-URL fast path in `main_window.py` and informative access-control dialog. |
+| **AUDIT-07** | GUI & CLI Resolution Diagnostics | Medium | Pasting download links in GUI/CLI displayed generic "Resolution Incomplete: Could not resolve any direct links" without diagnosing root cause (DNS blocking, Cloudflare Turnstile). | **RESOLVED:** Added `error_message` tracking on `DownloadItem`, detailed failure classification in `resolver.py` (`ERR_NAME_NOT_RESOLVED`, Turnstile, timeouts), direct `dl.fuckingfast.co` recognition and `.txt` batch manifest parsing in `scraper.py`, direct URL fast-path in `gui/main_window.py`, and actionable troubleshooting panels in both CLI and GUI. Verified with 112 passing tests. |
+| **AUDIT-08** | Scraper / CLI Search Crash | High | `python main.py` Option 2 (Search) crashed with `SSLEOFError` / Cloudflare WAF block due to TLS client hello mismatch and missing CLI exception handling. | **RESOLVED:** Added `_fetch_html()` with browser TLS impersonation (`curl_cffi`) and requests fallback, structured `ScraperError` with helpful troubleshooting guidance, and graceful error handling in `cli.py` (`search_cmd` and interactive loop). Verified with 4 new regression tests (109 total passing). |
+| **AUDIT-09** | CI / Mypy `gui/views/history_view.py` | Medium | CI on Linux failed Mypy with `Module has no attribute "startfile" [attr-defined]` because `os.startfile` is Windows-only. | **RESOLVED:** Added `hasattr(os, "startfile")` check with `# type: ignore[attr-defined]` and cross-platform fallback (`open`/`xdg-open`), plus `patch("os.startfile", create=True)` in `tests/test_gui.py`. Verified with Mypy on both Linux and Windows platforms (0 errors) and all 109 tests passing. |
 
 ---
 

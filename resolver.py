@@ -32,6 +32,7 @@ class FuckingFastResolver:
         self.log_callback = log_callback
         self.cache = self._load_cache()
         self._stop_event = threading.Event()
+        self.last_errors: dict[str, str] = {}
 
     def log(self, message: str):
         if self.log_callback:
@@ -100,11 +101,13 @@ class FuckingFastResolver:
             # Detect access-control challenge (Cloudflare Turnstile / anti-bot gate)
             challenge = page.query_selector("iframe[src*='challenges.cloudflare.com'], .cf-turnstile, #challenge-running, #challenge-form")
             if challenge:
-                self.log(
-                    f"⚠️ Access control challenge detected for {share_url}. "
+                msg = (
+                    f"⚠️ Access control challenge (Cloudflare Turnstile) detected for {share_url}. "
                     "Automated Cloudflare Turnstile bypass is excluded from this public distribution. "
-                    "Please provide a direct authorized download link."
+                    "Please solve in your browser and provide a direct authorized download link."
                 )
+                self.log(msg)
+                self.last_errors[share_url] = "Cloudflare Turnstile human verification required (cannot be automated)."
                 return None
 
             btn = page.wait_for_selector(
@@ -112,6 +115,7 @@ class FuckingFastResolver:
                 timeout=15000
             )
             if not btn:
+                self.last_errors[share_url] = "Download button not found on the page (file may be deleted or page format changed)."
                 return None
 
             btn.click()
@@ -134,9 +138,24 @@ class FuckingFastResolver:
                     "timestamp": time.time()
                 }
                 self._save_cache()
+            else:
+                self.last_errors[share_url] = "Download button clicked but server did not dispatch a direct download URL."
 
             return direct_url
-        except Exception:
+        except Exception as e:
+            err_str = str(e)
+            if "ERR_NAME_NOT_RESOLVED" in err_str:
+                self.last_errors[share_url] = (
+                    "DNS lookup failed for fuckingfast.co (net::ERR_NAME_NOT_RESOLVED). "
+                    "Your ISP or DNS server is blocking or failing to resolve this domain."
+                )
+            elif "Timeout" in err_str or "timeout" in err_str:
+                self.last_errors[share_url] = "Page navigation timed out after 30 seconds."
+            elif "ERR_CONNECTION_REFUSED" in err_str or "ERR_CONNECTION_RESET" in err_str:
+                self.last_errors[share_url] = "Connection was reset or refused by remote host."
+            else:
+                first_line = err_str.splitlines()[0] if err_str else "Unknown browser error"
+                self.last_errors[share_url] = f"Browser error: {first_line}"
             return None
         finally:
             page.remove_listener("response", on_response)
@@ -188,6 +207,8 @@ class FuckingFastResolver:
                 direct = self.resolve_single_page(page, item.share_url)
                 if direct:
                     item.direct_url = direct
+                elif item.share_url in self.last_errors:
+                    item.error_message = self.last_errors[item.share_url]
                 resolved_count += 1
                 if progress_callback:
                     progress_callback(resolved_count, total, item)

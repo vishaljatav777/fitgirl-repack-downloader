@@ -123,6 +123,25 @@ def test_cli_search_command():
         assert "Witcher 3" in result.stdout
 
 
+def test_cli_search_error_handled_gracefully():
+    from unittest.mock import patch
+
+    from exceptions import ScraperError
+
+    with patch("cli.get_service") as mock_get_srv:
+        mock_srv = mock_get_srv.return_value
+        mock_srv.search_repacks.side_effect = ScraperError(
+            "Access blocked by fitgirl-repacks.site (HTTP 403).",
+            details="Cloudflare policy prevented access."
+        )
+        result = runner.invoke(app, ["search", "Cyberpunk"])
+        assert result.exit_code == 1
+        assert "Search failed" in result.stdout
+        assert "Cloudflare" in result.stdout
+        assert "Tip:" in result.stdout
+
+
+
 def test_cli_jobs_cancel():
     from unittest.mock import patch
     with patch("cli.get_service") as mock_get_srv:
@@ -141,4 +160,28 @@ def test_cli_jobs_resume_not_found():
         result = runner.invoke(app, ["jobs", "resume", "non_existent"])
         assert result.exit_code == 1
         assert "not found" in result.stdout
+
+
+def test_cli_download_resolution_failure_diagnostics():
+    from unittest.mock import patch
+
+    from scraper import DownloadItem, GameRepack
+
+    with patch("cli.get_service") as mock_get_srv:
+        mock_srv = mock_get_srv.return_value
+        item = DownloadItem(
+            filename="gow.part01.rar",
+            share_url="https://fuckingfast.co/gow1",
+            error_message="DNS lookup failed for fuckingfast.co (net::ERR_NAME_NOT_RESOLVED)."
+        )
+        repack = GameRepack(title="God of War", page_url="https://site/gow", parts=[item])
+        mock_srv.scrape_repack.return_value = repack
+        mock_srv.resolve_links.return_value = [item]
+
+        result = runner.invoke(app, ["download", "https://site/gow"])
+        assert result.exit_code == 1
+        assert "Failed to resolve direct download links" in result.stdout
+        assert "ERR_NAME_NOT_RESOLVED" in result.stdout
+        assert "1.1.1.1" in result.stdout
+
 
